@@ -43,9 +43,9 @@ Cabal-Version:       >=1.8
 Homepage:            http://github.com/vincenthz/hs-cryptohash
 
 extra-source-files:
-  cbits/bitfn.h cbits/sha512.h cbits/sha3.h
-  cbits/skein.h cbits/skein256.h cbits/skein512.h
-  README.md
+  cbits/align.h cbits/bitfn.h cbits/sha512.h
+  cbits/sha3.h cbits/skein.h cbits/skein256.h
+  cbits/skein512.h README.md
 
 Library
   Build-Depends:     base >= 4 && < 6, bytestring, byteable, cryptonite >= 0.13, memory, ghc-prim

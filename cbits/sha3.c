@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "bitfn.h"
+#include "align.h"
 #include "sha3.h"
 
 #define KECCAK_NB_ROUNDS 24
@@ -101,7 +102,7 @@ void cryptohash_sha3_init(struct sha3_ctx *ctx, uint32_t hashlen)
 {
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->hashlen = hashlen / 8;
-	ctx->bufsz = 200 - 2 * ctx->hashlen;
+	ctx->bufsz = SHA3_BUF_SIZE(hashlen);
 }
 
 void cryptohash_sha3_update(struct sha3_ctx *ctx, uint8_t *data, uint32_t len)
@@ -124,9 +125,18 @@ void cryptohash_sha3_update(struct sha3_ctx *ctx, uint8_t *data, uint32_t len)
 		ctx->bufindex = 0;
 	}
 
-	/* process as much ctx->bufsz-block */
-	for (; len >= ctx->bufsz; len -= ctx->bufsz, data += ctx->bufsz)
-		sha3_do_chunk(ctx->state, (uint64_t *) data, ctx->bufsz / 8);
+	if (need_alignment(data, 8)) {
+		uint64_t tramp[SHA3_BUF_SIZE_MAX/8];
+		ASSERT_ALIGNMENT(tramp, 8);
+		for (; len >= ctx->bufsz; len -= ctx->bufsz, data += ctx->bufsz) {
+			memcpy(tramp, data, ctx->bufsz);
+			sha3_do_chunk(ctx->state, tramp, ctx->bufsz / 8);
+		}
+	} else {
+		/* process as much ctx->bufsz-block */
+		for (; len >= ctx->bufsz; len -= ctx->bufsz, data += ctx->bufsz)
+			sha3_do_chunk(ctx->state, (uint64_t *) data, ctx->bufsz / 8);
+	}
 
 	/* append data into buf */
 	if (len) {

@@ -26,6 +26,7 @@
 #include "skein.h"
 #include "skein512.h"
 #include "bitfn.h"
+#include "align.h"
 
 static const uint8_t K512_0[4] = { 46, 36, 19, 37, };
 static const uint8_t K512_1[4] = { 33, 27, 14, 42, };
@@ -162,9 +163,18 @@ void cryptohash_skein512_update(struct skein512_ctx *ctx, uint8_t *data, uint32_
 		ctx->bufindex = 0;
 	}
 
-	/* process as much 64-block as possible except the last one in case we finalize */
-	for (; len > 64; len -= 64, data += 64)
-		skein512_do_chunk(ctx, (uint64_t *) data, 64);
+	if (need_alignment(data, 8)) {
+		uint64_t tramp[8];
+		ASSERT_ALIGNMENT(tramp, 8);
+		for (; len > 64; len -= 64, data += 64) {
+			memcpy(tramp, data, 64);
+			skein512_do_chunk(ctx, tramp, 64);
+		}
+	} else {
+		/* process as much 64-block as possible except the last one in case we finalize */
+		for (; len > 64; len -= 64, data += 64)
+			skein512_do_chunk(ctx, (uint64_t *) data, 64);
+	}
 
 	/* append data into buf */
 	if (len) {
